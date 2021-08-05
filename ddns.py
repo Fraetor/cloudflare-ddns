@@ -6,7 +6,12 @@ from time import strftime
 from sys import stderr
 
 # Loads configuration from ./config.py
-import config as config
+import config
+
+
+def error_and_exit(error):
+    print(f"{strftime('%Y-%m-%d %H:%M:%S %Z')} {error}", file=stderr)
+    exit(1)
 
 
 def get_ip_address(ip_version=4):
@@ -25,11 +30,9 @@ def get_ip_address(ip_version=4):
     try:
         ip = requests.get(url, timeout=30).text
     except TimeoutError as error:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
-        exit(1)
+        error_and_exit(error)
     except requests.exceptions.ConnectionError as error:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
-        exit(1)
+        error_and_exit(error)
     return ip
 
 
@@ -48,23 +51,19 @@ def check_record(ip_address, ip_version=4):
     else:
         raise ValueError
     headers = CaseInsensitiveDict()
-    headers["Authorization"] = "Bearer " + config.api_token
-    url = "https://api.cloudflare.com/client/v4/zones/" + config.zone_identifier + \
-        "/dns_records/?type=" + record_type + "&name=" + \
-        config.subdomain + "." + config.domain
+    headers["Authorization"] = f"Bearer {config.api_token}"
+    url = f"https://api.cloudflare.com/client/v4/zones/{config.zone_identifier}" + \
+        f"/dns_records/?type={record_type}&name={config.subdomain}.{config.domain}"
     try:
         dns_json = requests.get(url, headers=headers, timeout=30).json()[
             "result"][0]
     except ConnectionError as error:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
-        exit(1)
+        error_and_exit(error)
     except TimeoutError as error:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
-        exit(1)
+        error_and_exit(error)
     except IndexError as error:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
         print("DNS record probably does not exist. Please create it in the Cloudflare Dashboard.")
-        exit(1)
+        error_and_exit(error)
     identifier = dns_json["id"]
     dns_address = dns_json["content"]
     if dns_address == ip_address:
@@ -88,15 +87,18 @@ def update_record(identifier, ip_address, ip_version=4):
     else:
         raise ValueError
     headers = CaseInsensitiveDict()
-    headers["Authorization"] = "Bearer " + config.api_token
-    payload = {"type": record_type, "name": config.subdomain,
-               "content": ip_address, "ttl": 300, "proxied": False}
-    url = "https://api.cloudflare.com/client/v4/zones/" + \
-        config.zone_identifier + "/dns_records/" + identifier
+    headers["Authorization"] = f"Bearer {config.api_token}"
+    payload = {
+        "type": record_type,
+        "name": config.subdomain,
+        "content": ip_address,
+        "ttl": 300,
+        "proxied": False
+    }
+    url = f"https://api.cloudflare.com/client/v4/zones/{config.zone_identifier}/dns_records/{identifier}"
     r = requests.put(url, headers=headers, json=payload)
     if r.status_code != 200:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z") +
-              " Error updating DNS record. HTTP " + str(r.status_code), file=stderr)
+        print(f'{strftime("%Y-%m-%d %H:%M:%S %Z")} Error updating DNS record. HTTP {r.status_code}', file=stderr)
         return r.status_code
     return None
 
@@ -105,19 +107,19 @@ def update_record(identifier, ip_address, ip_version=4):
 if config.ipv4_enabled:
     ipv4_address = get_ip_address(4)
     ident = check_record(ipv4_address, 4)
-    if ident != None:
-        if update_record(ident, ipv4_address, 4) == None:
-            current_time = strftime("%Y-%m-%d %H:%M:%S %Z")
-            print(current_time + " A record updated to " + ipv4_address)
+    if ident:
+        if update_record(ident, ipv4_address, 4) is None:
+            print(
+                f"{strftime('%Y-%m-%d %H:%M:%S %Z')} A record updated to {ipv4_address}")
 
 
 # Check and update IPv6 AAAA record.
 if config.ipv6_enabled:
     ipv6_address = get_ip_address(6)
     ident = check_record(ipv6_address, 6)
-    if ident != None:
-        if update_record(ident, ipv6_address, 6) == None:
-            current_time = strftime("%Y-%m-%d %H:%M:%S %Z")
-            print(current_time + " AAAA record updated to " + ipv6_address)
+    if ident:
+        if update_record(ident, ipv6_address, 6) is None:
+            print(
+                f"{strftime('%Y-%m-%d %H:%M:%S %Z')} AAAA record updated to {ipv6_address}")
 
 exit(0)
