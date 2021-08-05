@@ -9,21 +9,21 @@ from sys import stderr
 import config as config
 
 
-def get_ipv4_address():
-    try:
-        ip = requests.get("https://api.ipify.org/", timeout=30).text
-    except TimeoutError as error:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
-        exit(1)
-    except requests.exceptions.ConnectionError as error:
-        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
-        exit(1)
-    return ip
+def get_ip_address(ip_version=4):
+    """
+    Retrieves the public IP from an API.
+    Takes the IP version as an argument (4 or 6)
 
-
-def get_ipv6_address():
+    Returns a string of the public IP address.
+    """
+    if ip_version == 4:
+        url = "https://api.ipify.org/"
+    elif ip_version == 6:
+        url = "https://api6.ipify.org/"
+    else:
+        raise ValueError("Invalid IP version.")
     try:
-        ip = requests.get("https://api6.ipify.org/", timeout=30).text
+        ip = requests.get(url, timeout=30).text
     except TimeoutError as error:
         print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
         exit(1)
@@ -53,12 +53,17 @@ def check_record(ip_address, ip_version=4):
         "/dns_records/?type=" + record_type + "&name=" + \
         config.subdomain + "." + config.domain
     try:
-        dns_json = requests.get(url, headers=headers, timeout=30).json()["result"][0]
+        dns_json = requests.get(url, headers=headers, timeout=30).json()[
+            "result"][0]
     except ConnectionError as error:
-        print(error)
+        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
         exit(1)
     except TimeoutError as error:
-        print(error)
+        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
+        exit(1)
+    except IndexError as error:
+        print(strftime("%Y-%m-%d %H:%M:%S %Z ") + str(error), file=stderr)
+        print("DNS record probably does not exist. Please create it in the Cloudflare Dashboard.")
         exit(1)
     identifier = dns_json["id"]
     dns_address = dns_json["content"]
@@ -90,14 +95,15 @@ def update_record(identifier, ip_address, ip_version=4):
         config.zone_identifier + "/dns_records/" + identifier
     r = requests.put(url, headers=headers, json=payload)
     if r.status_code != 200:
-        print("Error updating DNS record. HTTP " + str(r.status_code))
+        print(strftime("%Y-%m-%d %H:%M:%S %Z") +
+              " Error updating DNS record. HTTP " + str(r.status_code), file=stderr)
         return r.status_code
     return None
 
 
 # Check and update IPv4 A record.
 if config.ipv4_enabled:
-    ipv4_address = get_ipv4_address()
+    ipv4_address = get_ip_address(4)
     ident = check_record(ipv4_address, 4)
     if ident != None:
         if update_record(ident, ipv4_address, 4) == None:
@@ -107,7 +113,7 @@ if config.ipv4_enabled:
 
 # Check and update IPv6 AAAA record.
 if config.ipv6_enabled:
-    ipv6_address = get_ipv6_address()
+    ipv6_address = get_ip_address(6)
     ident = check_record(ipv6_address, 6)
     if ident != None:
         if update_record(ident, ipv6_address, 6) == None:
