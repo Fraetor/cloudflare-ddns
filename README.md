@@ -7,7 +7,7 @@ Then just run `python3 ddns.py`
 For final deployments I would recommend setting up a `cron` job to run the script every so often.
 
 # Requirements
-Python >3.5 (Tested with 3.9)
+Python >3.6 (Tested with 3.9)
 
 [Requests](https://requests.readthedocs.io/)
 ```
