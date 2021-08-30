@@ -32,7 +32,8 @@ def get_ip_address(ip_version=4):
     except TimeoutError as error:
         error_and_exit(error)
     except requests.exceptions.ConnectionError as error:
-        error_and_exit(error)
+        #error_and_exit(error)
+        error_and_exit("Connection Error. The internet is probably down.")
     return ip
 
 
@@ -58,7 +59,8 @@ def check_record(ip_address, ip_version=4):
         dns_json = requests.get(url, headers=headers, timeout=30).json()[
             "result"][0]
     except ConnectionError as error:
-        error_and_exit(error)
+        #error_and_exit(error)
+        error_and_exit("Connection Error. The internet is probably down.")
     except TimeoutError as error:
         error_and_exit(error)
     except IndexError as error:
