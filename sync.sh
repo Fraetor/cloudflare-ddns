@@ -5,4 +5,4 @@
 cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null 
 
 # Run DDNS updater.
-python3 ddns.py |& tee -a $1
+python3 ddns.py &>> $1
