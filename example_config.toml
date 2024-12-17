@@ -8,5 +8,5 @@ zone_identifier = "ab123"
 api_token = "abc123"
 
 # Program configuration
-ipv4_enabled = True
-ipv6_enabled = True
+ipv4_enabled = true
+ipv6_enabled = true
